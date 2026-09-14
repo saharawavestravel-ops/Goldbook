@@ -3,7 +3,7 @@
  * Never import into client components.
  */
 
-import { getKvConfig } from "@/lib/persist";
+import { getKvConfig, getDatabaseUrl, getSupabaseRestConfig } from "@/lib/persist";
 
 export type EnvIssue = {
   level: "error" | "warn";
@@ -57,12 +57,12 @@ export function validateEnv(options?: { production?: boolean }): EnvIssue[] {
     });
   }
 
-  if (production && !getKvConfig()) {
+  if (production && !getDatabaseUrl() && !getSupabaseRestConfig() && !getKvConfig()) {
     issues.push({
       level: process.env.VERCEL ? "error" : "warn",
       code: "PERSIST_EPHEMERAL",
       message:
-        "No KV/Upstash configured — briefs, scores, and PIN hashes may not survive serverless deploys. Set KV_REST_API_URL + KV_REST_API_TOKEN (or Upstash equivalents).",
+        "No durable storage — set SUPABASE_URL + SUPABASE_ANON_KEY + GOLDBOOK_KV_SECRET (or DATABASE_URL / KV).",
     });
   }
 

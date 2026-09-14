@@ -102,8 +102,13 @@ export function getIntegrationStatus(): IntegrationStatus[] {
     },
     {
       id: "persist",
-      label: "Durable KV",
+      label: "Durable storage",
       ready:
+        present("DATABASE_URL") ||
+        present("SUPABASE_DB_URL") ||
+        (present("SUPABASE_URL") &&
+          present("SUPABASE_ANON_KEY") &&
+          present("GOLDBOOK_KV_SECRET")) ||
         (present("KV_REST_API_URL") && present("KV_REST_API_TOKEN")) ||
         (present("UPSTASH_REDIS_REST_URL") && present("UPSTASH_REDIS_REST_TOKEN")),
       requiredFor: "Briefs / scores / pins on Vercel",

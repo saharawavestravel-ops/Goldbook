@@ -22,7 +22,7 @@ function formatWhen(iso: string | undefined, locale: string) {
 
 type HealthPayload = {
   productionReady: boolean;
-  persist: { driver: "file" | "upstash"; durable: boolean };
+  persist: { driver: "file" | "upstash" | "supabase"; durable: boolean };
   issues: { level: string; code: string; message: string }[];
   integrations: Record<string, boolean | string | undefined>;
 };
@@ -34,7 +34,7 @@ export function YouProfile({
 }: {
   user: DeskUser;
   meta?: StoredUserMeta;
-  persist?: { driver: "file" | "upstash"; durable: boolean };
+  persist?: { driver: "file" | "upstash" | "supabase"; durable: boolean };
 }) {
   const { locale, dict } = useI18n();
   const router = useRouter();
