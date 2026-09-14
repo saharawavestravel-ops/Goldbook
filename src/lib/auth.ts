@@ -30,8 +30,11 @@ export function verifyPinHash(pin: string, stored: string) {
 }
 
 function getEnvPin(userId: UserId) {
-  if (userId === "salah") return process.env.SALAH_PIN ?? "2001";
-  return process.env.RAYANE_PIN ?? "1357";
+  const raw =
+    userId === "salah" ? process.env.SALAH_PIN : process.env.RAYANE_PIN;
+  const trimmed = raw?.trim();
+  if (trimmed && /^\d{4}$/.test(trimmed)) return trimmed;
+  return userId === "salah" ? "2001" : "1357";
 }
 
 function verifyEnvPin(userId: UserId, pin: string) {
@@ -42,18 +45,19 @@ function verifyEnvPin(userId: UserId, pin: string) {
   return timingSafeEqual(a, b);
 }
 
-/** Verify PIN against stored hash, else env defaults. Migrates env PIN → hash on success. */
+/** Verify PIN: env is source of truth; stored hash is optional cache. */
 export async function verifyUserPin(userId: UserId, pin: string) {
   if (!/^\d{4}$/.test(pin)) return false;
+
+  // Env PIN always wins (private desk — redeploy / Vercel env is the recovery path).
+  if (verifyEnvPin(userId, pin)) {
+    await setStoredPinHash(userId, hashPin(pin)).catch(() => null);
+    return true;
+  }
+
   const stored = await getStoredPinHash(userId);
   if (stored && verifyPinHash(pin, stored)) return true;
-
-  const ok = verifyEnvPin(userId, pin);
-  if (ok) {
-    // Env PIN is the recovery source of truth (redeploy / forgot changed PIN).
-    await setStoredPinHash(userId, hashPin(pin)).catch(() => null);
-  }
-  return ok;
+  return false;
 }
 
 export async function changeUserPin(userId: UserId, currentPin: string, nextPin: string) {

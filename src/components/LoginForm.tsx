@@ -48,20 +48,25 @@ export function LoginForm({ users }: { users: DeskUser[] }) {
     }
 
     startTransition(async () => {
-      const response = await fetch("/api/auth/login", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ userId: selected, pin }),
-      });
-      const data = (await response.json()) as { error?: string };
-      if (!response.ok) {
-        setError(data.error ?? "Error");
+      try {
+        const response = await fetch("/api/auth/login", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ userId: selected, pin }),
+        });
+        const data = (await response.json()) as { error?: string; ok?: boolean };
+        if (!response.ok) {
+          setError(data.error ?? `Error ${response.status}`);
+          setPin("");
+          return;
+        }
+        const next = searchParams.get("next") || "/";
+        router.replace(next);
+        router.refresh();
+      } catch {
+        setError("Network error — try again");
         setPin("");
-        return;
       }
-      const next = searchParams.get("next") || "/";
-      router.replace(next);
-      router.refresh();
     });
   }
 

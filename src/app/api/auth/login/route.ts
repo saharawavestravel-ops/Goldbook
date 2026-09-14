@@ -3,7 +3,7 @@ import { createSessionToken, sessionCookieOptions, verifyUserPin } from "@/lib/a
 import { clientKey, consumeRateLimit, rateLimitHeaders } from "@/lib/rate-limit";
 import { isUserId } from "@/lib/users";
 
-const LOGIN_LIMIT = 8;
+const LOGIN_LIMIT = 30;
 const LOGIN_WINDOW_MS = 15 * 60 * 1000;
 
 export async function POST(request: Request) {
