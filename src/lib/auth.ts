@@ -46,11 +46,11 @@ function verifyEnvPin(userId: UserId, pin: string) {
 export async function verifyUserPin(userId: UserId, pin: string) {
   if (!/^\d{4}$/.test(pin)) return false;
   const stored = await getStoredPinHash(userId);
-  if (stored) return verifyPinHash(pin, stored);
+  if (stored && verifyPinHash(pin, stored)) return true;
 
   const ok = verifyEnvPin(userId, pin);
   if (ok) {
-    // Bootstrap: never keep relying on plaintext env after first good login.
+    // Env PIN is the recovery source of truth (redeploy / forgot changed PIN).
     await setStoredPinHash(userId, hashPin(pin)).catch(() => null);
   }
   return ok;
