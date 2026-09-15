@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter, useSearchParams } from "next/navigation";
-import { useState, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
 import { useI18n } from "@/lib/i18n/client";
 import type { DeskUser, UserId } from "@/lib/users";
 
@@ -27,8 +27,8 @@ export function LoginForm({ users }: { users: DeskUser[] }) {
       setPin((value) => value.slice(0, -1));
       return;
     }
-    if (!key || pin.length >= PIN_LENGTH) return;
-    setPin((value) => value + key);
+    if (!key) return;
+    setPin((value) => (value.length >= PIN_LENGTH ? value : value + key));
   }
 
   function selectUser(id: UserId) {
@@ -37,22 +37,24 @@ export function LoginForm({ users }: { users: DeskUser[] }) {
     setError(null);
   }
 
-  function submit() {
+  function submit(overridePin?: string) {
     if (!selected) {
       setError(dict.login.selectFirst);
       return;
     }
-    if (pin.length !== PIN_LENGTH) {
+    const nextPin = overridePin ?? pin;
+    if (nextPin.length !== PIN_LENGTH) {
       setError(dict.login.enterPin);
       return;
     }
+    if (pending) return;
 
     startTransition(async () => {
       try {
         const response = await fetch("/api/auth/login", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ userId: selected, pin }),
+          body: JSON.stringify({ userId: selected, pin: nextPin }),
         });
         const data = (await response.json()) as { error?: string; ok?: boolean };
         if (!response.ok) {
@@ -69,6 +71,36 @@ export function LoginForm({ users }: { users: DeskUser[] }) {
       }
     });
   }
+
+  useEffect(() => {
+    if (!selected || pin.length !== PIN_LENGTH || pending) return;
+    submit(pin);
+    // Auto-submit once the 4th digit is entered.
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- only when pin completes
+  }, [pin, selected]);
+
+  useEffect(() => {
+    function onKeyDown(event: KeyboardEvent) {
+      if (!selected || pending) return;
+      if (event.key === "Backspace") {
+        event.preventDefault();
+        onKey("⌫");
+        return;
+      }
+      if (event.key === "Enter") {
+        event.preventDefault();
+        submit();
+        return;
+      }
+      if (/^\d$/.test(event.key)) {
+        event.preventDefault();
+        onKey(event.key);
+      }
+    }
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selected, pin, pending]);
 
   const selectedUser = users.find((user) => user.id === selected);
 
@@ -144,7 +176,7 @@ export function LoginForm({ users }: { users: DeskUser[] }) {
 
           <button
             type="button"
-            onClick={submit}
+            onClick={() => submit()}
             disabled={pending || pin.length !== PIN_LENGTH}
             className="gb-btn gb-btn-primary w-full disabled:opacity-60"
           >

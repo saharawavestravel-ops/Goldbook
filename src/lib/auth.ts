@@ -29,11 +29,15 @@ export function verifyPinHash(pin: string, stored: string) {
   return timingSafeEqual(current, next);
 }
 
+function normalizePin(raw: string) {
+  return raw.replace(/\D/g, "").slice(0, 4);
+}
+
 function getEnvPin(userId: UserId) {
   const raw =
     userId === "salah" ? process.env.SALAH_PIN : process.env.RAYANE_PIN;
-  const trimmed = raw?.trim();
-  if (trimmed && /^\d{4}$/.test(trimmed)) return trimmed;
+  const digits = raw ? normalizePin(raw) : "";
+  if (/^\d{4}$/.test(digits)) return digits;
   return userId === "salah" ? "2001" : "1357";
 }
 
@@ -47,30 +51,33 @@ function verifyEnvPin(userId: UserId, pin: string) {
 
 /** Verify PIN: env is source of truth; stored hash is optional cache. */
 export async function verifyUserPin(userId: UserId, pin: string) {
-  if (!/^\d{4}$/.test(pin)) return false;
+  const normalized = normalizePin(pin);
+  if (!/^\d{4}$/.test(normalized)) return false;
 
   // Env PIN always wins (private desk — redeploy / Vercel env is the recovery path).
-  if (verifyEnvPin(userId, pin)) {
-    await setStoredPinHash(userId, hashPin(pin)).catch(() => null);
+  if (verifyEnvPin(userId, normalized)) {
+    await setStoredPinHash(userId, hashPin(normalized)).catch(() => null);
     return true;
   }
 
   const stored = await getStoredPinHash(userId);
-  if (stored && verifyPinHash(pin, stored)) return true;
+  if (stored && verifyPinHash(normalized, stored)) return true;
   return false;
 }
 
 export async function changeUserPin(userId: UserId, currentPin: string, nextPin: string) {
-  if (!/^\d{4}$/.test(nextPin)) {
+  const normalizedNext = nextPin.replace(/\D/g, "").slice(0, 4);
+  if (!/^\d{4}$/.test(normalizedNext)) {
     return { ok: false as const, error: "New PIN must be 4 digits" };
   }
   if (!(await verifyUserPin(userId, currentPin))) {
     return { ok: false as const, error: "Current PIN is wrong" };
   }
-  if (currentPin === nextPin) {
+  const normalizedCurrent = currentPin.replace(/\D/g, "").slice(0, 4);
+  if (normalizedCurrent === normalizedNext) {
     return { ok: false as const, error: "Choose a different PIN" };
   }
-  await setStoredPinHash(userId, hashPin(nextPin));
+  await setStoredPinHash(userId, hashPin(normalizedNext));
   const { touchUserPinUpdate } = await import("@/lib/users-store");
   await touchUserPinUpdate(userId);
   return { ok: true as const };
